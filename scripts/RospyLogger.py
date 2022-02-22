@@ -15,7 +15,6 @@ class RospyLogger(logging.Logger):
         rospy.logwarn(msg)
 
     def info(self, msg, *args, **kwargs):
-        print("INFO!!!")
         assert len(args) == 0 and len(kwargs) == 0
         rospy.loginfo(msg)
 

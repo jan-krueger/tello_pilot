@@ -1,7 +1,26 @@
 
+from numpy import empty
 from DJITelloPy.djitellopy.tello import Tello
 
 class TelloParameterParser:
+
+    @staticmethod
+    def param_tello_list(input: str):
+        input = input.strip()
+
+        if len(input) == 0:
+            return (True, {'default': None})
+
+        prefix_list = input.split(',')
+        tello_list = {}
+        
+        for prefix in prefix_list:
+            if prefix not in tello_list:
+                tello_list[prefix] = None
+            else:
+                raise Exception("Duplicate prefix in tello_list. %s" % prefix)
+
+        return (len(tello_list) == 0, tello_list)
 
     @staticmethod
     def param_camera_bitrate(input: str):
