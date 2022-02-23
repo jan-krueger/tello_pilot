@@ -83,6 +83,7 @@ class TelloSwarmMember:
         self.takeoff_subscriber = rospy.Subscriber(self.tn('takeoff'), Empty, self.cmd_takeoff)
         self.land_subscriber = rospy.Subscriber(self.tn('land'), Empty, self.cmd_land)
         self.cmd_vel_subscriber = rospy.Subscriber(self.tn('cmd_vel'), TwistStamped, self.cmd_vel)
+        self.emergency_subscriber = rospy.Subscriber(self.tn('emergency'), Empty, self.cmd_emergency)
 
         # ---- Settings ----
         self.camera_direction = Tello.CAMERA_FORWARD
@@ -136,6 +137,9 @@ class TelloSwarmMember:
             img_msg.header.stamp = rospy.Time.now()
             self.image_raw_publisher.publish(img_msg)
             sleep(1 / 25.)
+
+    def cmd_emergency(self, msg):
+        self.tello.emergency()
 
     def cmd_takeoff(self, msg):
         self.tello.takeoff()

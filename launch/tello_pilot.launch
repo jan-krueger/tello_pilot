@@ -3,7 +3,7 @@
 
 		<node pkg="tello_pilot" name="tello_pilot_node" type="tello_pilot_node.py" output="screen">
             <!-- tello_list [List]: Defines the names of each drone in the swarm -->
-            <param name="tello_list" value="a,b" type="str" />
+            <param name="tello_list" value="a" type="str" />
 
             <!-- AP Mode -->
             <param name="ap_mode" value="true" type="bool" />
