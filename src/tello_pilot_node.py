@@ -13,7 +13,7 @@ from tello_pilot.msg import CameraDirection
 
 import cv2 as cv
 import numpy as np
-from RospyLogger import RospyLogger
+from tello_pilot.src.utils.RospyLogger import RospyLogger
 from TelloParameterParser import TelloParameterParser
 
 from cv_bridge import CvBridge
