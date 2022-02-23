@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 
 from time import sleep
+import math
 
 import rospy
+from tf.transformations import quaternion_from_euler
+
 from std_msgs.msg import Empty
 from sensor_msgs.msg import Image, Imu
+from geometry_msgs.msg import TwistStamped
 from tello_pilot.msg import CameraDirection
 
 import cv2 as cv
+import numpy as np
 from RospyLogger import RospyLogger
 from TelloParameterParser import TelloParameterParser
 
@@ -45,10 +50,18 @@ class TelloSwarmMember:
         self.eth_interface = self.pn('eth_interface')
         self.ssid = self.pn('ssid')
 
+        # ---- IMU ----
         self.imu_msg = Imu()
         self.imu_msg.header.seq = -1
 
-        self.tello = Tello(host=self.pn('ip')) # eth_interface=self.eth_interface, ssid=self.ssid
+        self.old_state = None
+        self.old_state_time = None 
+
+        self.imu_publisher = rospy.Publisher(self.tn('imu'), Imu, queue_size=1)
+        # ---- IMU End ----
+
+        self.tello = Tello(host=self.pn('ip'),
+            state_update_callback=self.imu_odometry_callback) # eth_interface=self.eth_interface, ssid=self.ssid
 
         self.bridge = CvBridge()
         
@@ -69,8 +82,7 @@ class TelloSwarmMember:
 
         self.takeoff_subscriber = rospy.Subscriber(self.tn('takeoff'), Empty, self.cmd_takeoff)
         self.land_subscriber = rospy.Subscriber(self.tn('land'), Empty, self.cmd_land)
-
-        self.imu_publisher = rospy.Publisher(self.tn('imu'), Imu, queue_size=1)
+        self.cmd_vel_subscriber = rospy.Subscriber(self.tn('cmd_vel'), TwistStamped, self.cmd_vel)
 
         # ---- Settings ----
         self.camera_direction = Tello.CAMERA_FORWARD
@@ -89,6 +101,35 @@ class TelloSwarmMember:
             self.frame_read = self.tello.get_frame_read()
             self.video_thread.start()
 
+    def imu_odometry_callback(self, state):
+
+        now = rospy.Time.now()
+        if self.old_state is not None:
+            # ---- IMU ----
+            self.imu_msg.header.seq = self.imu_msg.header.seq + 1
+            self.imu_msg.header.stamp = now
+
+            self.imu_msg.linear_acceleration.x = state['agx'] / 100.
+            self.imu_msg.linear_acceleration.y = state['agy'] / 100.
+            self.imu_msg.linear_acceleration.z = state['agz'] / 100.
+
+            dt =  (now - self.old_state_time).to_sec()
+            self.imu_msg.angular_velocity.x = (state['roll'] - self.old_state['roll']) / dt * (math.pi / 180.)
+            self.imu_msg.angular_velocity.y = -(state['pitch'] - self.old_state['pitch']) / dt * (math.pi / 180.)
+            self.imu_msg.angular_velocity.z = -(state['yaw'] - self.old_state['yaw']) / dt * (math.pi / 180.)
+            
+            q = quaternion_from_euler(state['roll'] * (math.pi / 180.), -state['pitch'] * (math.pi / 180.),
+                                        -state['yaw'] * (math.pi / 180.))
+            self.imu_msg.orientation.x = q[0]
+            self.imu_msg.orientation.y = q[1]
+            self.imu_msg.orientation.z = q[2]
+            self.imu_msg.orientation.w = q[3]
+
+            self.imu_publisher.publish(self.imu_msg)
+
+        self.old_state = state
+        self.old_state_time = now
+
     def pub_image_raw(self):
         while True:
             img_msg = self.bridge.cv2_to_imgmsg(self.frame_read.frame, 'rgb8')
@@ -101,6 +142,12 @@ class TelloSwarmMember:
 
     def cmd_land(self, msg):
         self.tello.land()
+
+    def cmd_vel(self, msg:TwistStamped):
+        multiplier = 1.25
+        vel_vector = (np.array([msg.twist.linear.x, msg.twist.linear.y, msg.twist.linear.z]) * 100. * multiplier).astype(np.int32)
+        # NOTE: right-hand coordinate system
+        self.tello.send_rc_control(-vel_vector[1].item(), vel_vector[0].item(), vel_vector[2].item(), 0)
 
     def cmd_camera_direction(self, msg):
         if msg.forward:
