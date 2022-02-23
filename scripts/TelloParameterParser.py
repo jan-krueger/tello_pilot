@@ -47,3 +47,10 @@ class TelloParameterParser:
             return Tello.FPS_15
         else:
             return Tello.FPS_30
+
+    @staticmethod
+    def param_camera_resolution(input: str):
+        if input == '480P':
+            return Tello.RESOLUTION_480P
+        else:
+            return Tello.RESOLUTION_720P

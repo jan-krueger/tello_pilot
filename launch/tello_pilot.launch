@@ -3,7 +3,7 @@
 
 		<node pkg="tello_pilot" name="tello_pilot_node" type="tello_pilot_node.py" output="screen">
             <!-- tello_list [List]: Defines the names of each drone in the swarm -->
-            <param name="tello_list" value="a" type="str" />
+            <param name="tello_list" value="a,b" type="str" />
 
             <!-- AP Mode -->
             <param name="ap_mode" value="true" type="bool" />
@@ -15,11 +15,13 @@
 			<param name="camera_fps" value="30" type="int" /> 
             <!-- camera_bitrate [MB/s]: This can be auto, 1, 2, 3, 4, or 5. --> 
             <param name="camera_bitrate" value="5" type="str" />
+            <!-- camera_resolution [-]: This can be 480P or 720P. --> 
+            <param name="camera_resolution" value="720P" type="str" />
             <!-- GLOBAL END -->
             
             <param name="a_ip" value="192.168.0.100" />
             <param name="b_ip" value="192.168.0.101" />
-            <param name="b_camera_bitrate" value="1" type="str" />
+            <param name="b_camera_resolution" value="480P" type="str" />
 
 		</node>
 

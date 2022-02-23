@@ -31,15 +31,15 @@ class TelloNode:
         (single_mode, tello_list) = TelloParameterParser.param_tello_list(rospy.get_param('~tello_list', ''))
         
         self.threads = []
-        for prefix in tello_list.keys():
-            thread = Thread(target=TelloSwarmMember, daemon=True, args=(prefix,))
-            thread.start()
-            self.threads.append(thread)
+        #for prefix in tello_list.keys():
+        #    thread = Thread(target=TelloSwarmMember, daemon=True, args=(prefix,))
+        #    thread.start()
+        #    self.threads.append(thread)
         # ---- AP ----
-        #if(rospy.get_param('~ap_mode', False)):
-        #    self.tello = Tello()
-        #    self.tello.connect()
-        #    self.tello.connect_to_wifi(rospy.get_param('~ap_ssid'), rospy.get_param('~ap_password'))
+        if(rospy.get_param('~ap_mode', False)):
+            self.tello = Tello()
+            self.tello.connect()
+            self.tello.connect_to_wifi(rospy.get_param('~ap_ssid'), rospy.get_param('~ap_password'))
 
         #Tello.LOGGER = RospyLogger()
 
@@ -92,6 +92,8 @@ class TelloSwarmMember:
             TelloParameterParser.param_camera_fps(self.pn('camera_fps', rospy.get_param('~camera_fps', 30))))
         self.tello.set_video_bitrate(
             TelloParameterParser.param_camera_bitrate(self.pn('camera_bitrate', rospy.get_param('~camera_bitrate'))))
+        self.tello.set_video_resolution(
+            TelloParameterParser.param_camera_resolution(self.pn('camera_resolution', rospy.get_param('~camera_resolution'))))
 
         # ---- Camera ----
         if True:
