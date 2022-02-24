@@ -4,6 +4,9 @@
 		<node pkg="tello_pilot" name="tello_pilot_node" type="tello_pilot_node.py" output="screen">
             <!-- tello_list [List]: Defines the names of each drone in the swarm -->
             <param name="tello_list" value="a,b" type="str" />
+            <!-- automatic_recovery [bool] (EXPERIMENTAL!): Determines whether or not the node should automatically
+                    try to reconnect to a drone if detects that it was disconnected for whatever reason. -->
+            <param name="automatic_recovery" value="false" type="bool" />
 
             <!-- tello_list [-]: Defines the frontend used for the video streams. This can be either opencv or av -->
             <param name="video_frontend" value="av" type="str" />

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
-from time import sleep
+import time
 import math
+
+from anyio import sleep
 
 import rospy
 from tf.transformations import quaternion_from_euler
@@ -31,12 +33,17 @@ class TelloNode:
 
     def __init__(self):
         (single_mode, tello_list) = TelloParameterParser.param_tello_list(rospy.get_param('~tello_list', ''))
-        
-        self.threads = []
+
+        self.automatic_recovery = rospy.get_param('~automatic_recovery', False)
+        self.recovery_lock = Lock()
+        self.recovery_queue = []   
+        self.threads = {}
         for prefix in tello_list.keys():
-            thread = Thread(target=TelloSwarmMember, daemon=True, args=(prefix,))
-            thread.start()
-            self.threads.append(thread)
+            self.add_drone(prefix)
+
+        if self.automatic_recovery:
+            self.recovery_timer = rospy.Timer(rospy.Duration(1), self.process_recovery_queue)
+
         # ---- AP ----
         #if(rospy.get_param('~ap_mode', False)):
         #    self.tello = Tello()
@@ -45,9 +52,23 @@ class TelloNode:
 
         #Tello.LOGGER = RospyLogger()
 
+    def add_drone(self, prefix):
+        thread = Thread(target=TelloSwarmMember, daemon=True, args=(prefix,self,))
+        thread.start()
+        self.threads[prefix] = thread
+
+    def process_recovery_queue(self, event):
+        with self.recovery_lock:
+            while len(self.recovery_queue) > 0:
+                prefix = self.recovery_queue.pop()
+                self.threads[prefix].join()
+                self.add_drone(prefix)
+
+
 class TelloSwarmMember:
 
-    def __init__(self, prefix: str) -> None:
+    def __init__(self, prefix: str, node) -> None:
+        self.node = node
         self.prefix = prefix
         self.eth_interface = self.pn('eth_interface')
         self.ssid = self.pn('ssid')
@@ -109,9 +130,26 @@ class TelloSwarmMember:
         self.tello.streamon()
         self.camera_direction_subscriber = rospy.Subscriber(self.tn('camera/direction'), CameraDirection, self.cmd_camera_direction),
         self.image_raw_publisher = rospy.Publisher(self.tn('camera/image_raw'), Image, queue_size=1)
-        self.video_thread = Thread(target=self.pub_image_raw)
-        self.frame_read = self.tello.get_frame_read()
-        self.video_thread.start()
+        self.frame_read = self.tello.get_frame_read(callback=self.pub_image_raw)
+
+        # ---- Recovery ----
+        if self.node.automatic_recovery:
+            self.recover_timer = rospy.Timer(rospy.Duration(1), self.recovery_callback)
+    
+    def recovery_callback(self, event):
+        if self.tello.is_alive:
+            if time.time() - self.tello.last_packet_received > 3:
+                self.tello.is_alive = False
+                print("Full drone disconnect detected! Queing drone for recovery process!")
+                with self.node.recovery_lock:
+                    self.node.recovery_queue.append(self.prefix)
+            elif time.time() - self.tello.last_video_frame_received > 3:
+                print("Video stream dropped out! Trying to recover video stream!")
+                self.tello.streamoff()
+                self.tello.streamon()
+                self.frame_read.stop()
+                self.frame_read = self.tello.get_frame_read()
+
 
     def imu_odometry_callback(self, state):
 
@@ -142,12 +180,10 @@ class TelloSwarmMember:
         self.old_state = state
         self.old_state_time = now
 
-    def pub_image_raw(self):
-        while True:
-            img_msg = self.bridge.cv2_to_imgmsg(self.frame_read.frame, 'rgb8')
-            img_msg.header.stamp = rospy.Time.now()
-            self.image_raw_publisher.publish(img_msg)
-            sleep(1. / self.camera_fps)
+    def pub_image_raw(self, frame):
+        img_msg = self.bridge.cv2_to_imgmsg(self.frame_read.frame, 'rgb8')
+        img_msg.header.stamp = rospy.Time.now()
+        self.image_raw_publisher.publish(img_msg)
 
     def cmd_emergency(self, msg):
         self.tello.emergency()
