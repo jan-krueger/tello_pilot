@@ -13,7 +13,7 @@ from tello_pilot.msg import CameraDirection
 
 import cv2 as cv
 import numpy as np
-from tello_pilot.src.utils.RospyLogger import RospyLogger
+from utils.RospyLogger import RospyLogger
 from TelloParameterParser import TelloParameterParser
 
 from cv_bridge import CvBridge
@@ -31,15 +31,15 @@ class TelloNode:
         (single_mode, tello_list) = TelloParameterParser.param_tello_list(rospy.get_param('~tello_list', ''))
         
         self.threads = []
-        #for prefix in tello_list.keys():
-        #    thread = Thread(target=TelloSwarmMember, daemon=True, args=(prefix,))
-        #    thread.start()
-        #    self.threads.append(thread)
+        for prefix in tello_list.keys():
+            thread = Thread(target=TelloSwarmMember, daemon=True, args=(prefix,))
+            thread.start()
+            self.threads.append(thread)
         # ---- AP ----
-        if(rospy.get_param('~ap_mode', False)):
-            self.tello = Tello()
-            self.tello.connect()
-            self.tello.connect_to_wifi(rospy.get_param('~ap_ssid'), rospy.get_param('~ap_password'))
+        #if(rospy.get_param('~ap_mode', False)):
+        #    self.tello = Tello()
+        #    self.tello.connect()
+        #    self.tello.connect_to_wifi(rospy.get_param('~ap_ssid'), rospy.get_param('~ap_password'))
 
         #Tello.LOGGER = RospyLogger()
 
@@ -88,8 +88,11 @@ class TelloSwarmMember:
         # ---- Settings ----
         self.camera_direction = Tello.CAMERA_FORWARD
         self.tello.set_video_direction(self.camera_direction)
-        self.tello.set_video_fps(
-            TelloParameterParser.param_camera_fps(self.pn('camera_fps', rospy.get_param('~camera_fps', 30))))
+
+        self.camera_fps = rospy.get_param('~camera_fps', 30)
+        self.tello.set_video_fps(TelloParameterParser.param_camera_fps(self.camera_fps))
+        self.camera_fps = int(self.camera_fps)
+
         self.tello.set_video_bitrate(
             TelloParameterParser.param_camera_bitrate(self.pn('camera_bitrate', rospy.get_param('~camera_bitrate'))))
         self.tello.set_video_resolution(
@@ -97,6 +100,7 @@ class TelloSwarmMember:
 
         # ---- Camera ----
         if True:
+            sleep(3) # TODO not sure how much delay we need here, but this seems to help the stream be more stable for some reason...
             self.tello.streamon()
             self.camera_direction_subscriber = rospy.Subscriber(self.tn('camera/direction'), CameraDirection, self.cmd_camera_direction),
             self.image_raw_publisher = rospy.Publisher(self.tn('camera/image_raw'), Image, queue_size=1)
@@ -138,7 +142,7 @@ class TelloSwarmMember:
             img_msg = self.bridge.cv2_to_imgmsg(self.frame_read.frame, 'rgb8')
             img_msg.header.stamp = rospy.Time.now()
             self.image_raw_publisher.publish(img_msg)
-            sleep(1 / 25.)
+            sleep(1. / self.camera_fps)
 
     def cmd_emergency(self, msg):
         self.tello.emergency()
