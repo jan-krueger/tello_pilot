@@ -135,6 +135,13 @@ class TelloSwarmMember:
         # ---- Recovery ----
         if self.node.automatic_recovery:
             self.recover_timer = rospy.Timer(rospy.Duration(1), self.recovery_callback)
+
+        # ---- Keep-Alive Signal ----
+        self.keep_alive_timer = rospy.Timer(rospy.Duration(3), self.keep_alive_callback)
+    
+    def keep_alive_callback(self, event):
+        rospy.loginfo("keepalive")
+        self.tello.send_keepalive()
     
     def recovery_callback(self, event):
         if self.tello.is_alive:
