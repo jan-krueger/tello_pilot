@@ -31,22 +31,7 @@ class CameraDelayMeasurementNode:
         self.current_marker_time = rospy.Time.now()
 
         self.time_deltas = []
-
-        while rospy.is_shutdown() is False:
-            tag = np.zeros((300, 300, 1), dtype="uint8")
-            self.aruco_id = (self.aruco_id + 1) % self.aruco_dictionary_size
-            cv.aruco.drawMarker(self.aruco_dictionary, self.aruco_id, 300, tag, 1)
-            self.current_marker_time = rospy.Time.now()
-            cv.imshow("[CameraDelay] Marker | %s" % self.camera_topic, tag)
-            key = cv.waitKey(500)
-
-            if key == 27: # 27 -> ESC
-                cv.destroyAllWindows()
-                break
-
-            rospy.Duration(5)
-        print("")
-
+            
     def process_image(self, msg):
         frame = self.bridge.imgmsg_to_cv2(msg)
 
@@ -57,8 +42,22 @@ class CameraDelayMeasurementNode:
                 'marker_id': self.aruco_id, 'processed': False})
 
     def process_images_callback(self, _):
+        tag = np.zeros((300, 300, 1), dtype="uint8")
         with self.processing_lock:
-            processed_ids = set()
+            self.aruco_id = (self.aruco_id + 1) % self.aruco_dictionary_size
+        cv.aruco.drawMarker(self.aruco_dictionary, self.aruco_id, 300, tag, 1)
+        self.current_marker_time = rospy.Time.now()
+        cv.imshow("[CameraDelay] Marker | %s" % self.camera_topic, tag)
+        key = cv.waitKey(1000)
+
+        if key == 27: # 27 -> ESC
+            cv.destroyAllWindows()
+            return 
+            
+        # process receiver images
+        with self.processing_lock:
+            min_time = 1000000000
+            at_least_one = False
             for event in self.image_queue:
                 
                 if event['processed'] == True:
@@ -67,20 +66,22 @@ class CameraDelayMeasurementNode:
 
                 _, ids, _ = cv.aruco.detectMarkers(event['frame'], self.aruco_dictionary)
 
-                if event['marker_id'] in processed_ids:
-                    continue
-                
                 if ids is not None:
                     detected_id = ids[0][0]
-                    if detected_id == event['marker_id']:
-                        processed_ids.add(event['marker_id'])
-                        self.time_deltas.append((event['frame_received'] - event['marker_display_time']).to_sec())
+                    if detected_id == self.aruco_id and detected_id == event['marker_id']:
+                        min_time = min(min_time, (event['frame_received'] - event['marker_display_time']).to_sec())
+                        at_least_one = True
+            if at_least_one:
+                self.time_deltas.append(min_time)
             if len(self.time_deltas) > 0:
                 print("detected markers %d | avg. dt: %.4f [s] | std. dev.: %.4f" %
                         (len(self.time_deltas), np.mean(self.time_deltas), np.std(self.time_deltas)),
                         end='\r')
             else:
                 print("buffer is still empty...", end='\r')
+
+        print("")
+
 
 
 def main():
