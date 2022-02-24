@@ -54,3 +54,11 @@ class TelloParameterParser:
             return Tello.RESOLUTION_480P
         else:
             return Tello.RESOLUTION_720P
+
+    @staticmethod
+    def param_video_frontend(input: str):
+        input = input.lower()
+        if input == 'av':
+            return 'av'
+        else:
+            return 'opencv'

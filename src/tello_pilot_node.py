@@ -23,6 +23,8 @@ from DJITelloPy.djitellopy.tello import Tello, TelloException
 
 # Locks
 port_update_lock = Lock()
+av_open_lock = Lock()
+
 video_stream_port = 11111
 
 class TelloNode:
@@ -60,8 +62,13 @@ class TelloSwarmMember:
         self.imu_publisher = rospy.Publisher(self.tn('imu'), Imu, queue_size=1)
         # ---- IMU End ----
 
+        # ---- Settings ----
+        self.video_frontend = TelloParameterParser.param_video_frontend(rospy.get_param('~video_frontend', 'av'))
+
         self.tello = Tello(host=self.pn('ip'),
-            state_update_callback=self.imu_odometry_callback) # eth_interface=self.eth_interface, ssid=self.ssid
+            state_update_callback=self.imu_odometry_callback,
+            av_open_lock=av_open_lock,
+            video_frontend=self.video_frontend)
 
         self.bridge = CvBridge()
         
@@ -99,14 +106,12 @@ class TelloSwarmMember:
             TelloParameterParser.param_camera_resolution(self.pn('camera_resolution', rospy.get_param('~camera_resolution'))))
 
         # ---- Camera ----
-        if True:
-            sleep(3) # TODO not sure how much delay we need here, but this seems to help the stream be more stable for some reason...
-            self.tello.streamon()
-            self.camera_direction_subscriber = rospy.Subscriber(self.tn('camera/direction'), CameraDirection, self.cmd_camera_direction),
-            self.image_raw_publisher = rospy.Publisher(self.tn('camera/image_raw'), Image, queue_size=1)
-            self.video_thread = Thread(target=self.pub_image_raw)
-            self.frame_read = self.tello.get_frame_read()
-            self.video_thread.start()
+        self.tello.streamon()
+        self.camera_direction_subscriber = rospy.Subscriber(self.tn('camera/direction'), CameraDirection, self.cmd_camera_direction),
+        self.image_raw_publisher = rospy.Publisher(self.tn('camera/image_raw'), Image, queue_size=1)
+        self.video_thread = Thread(target=self.pub_image_raw)
+        self.frame_read = self.tello.get_frame_read()
+        self.video_thread.start()
 
     def imu_odometry_callback(self, state):
 
@@ -169,8 +174,9 @@ class TelloSwarmMember:
             self.camera_direction = Tello.CAMERA_DOWNWARD
 
     def __del__(self):
-        if self.video_thread is not None:
-            self.video_thread.join()
+        #if self.video_thread is not None:
+        #    self.video_thread.join()
+        pass
 
     def tn(self, topic:str):
         return "%s/%s" % (self.prefix, topic)

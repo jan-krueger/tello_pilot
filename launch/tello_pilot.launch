@@ -5,6 +5,9 @@
             <!-- tello_list [List]: Defines the names of each drone in the swarm -->
             <param name="tello_list" value="a,b" type="str" />
 
+            <!-- tello_list [-]: Defines the frontend used for the video streams. This can be either opencv or av -->
+            <param name="video_frontend" value="av" type="str" />
+
             <!-- AP Mode -->
             <param name="ap_mode" value="true" type="bool" />
             <param name="ap_ssid" value="TP-Link_9975" type="str" />
