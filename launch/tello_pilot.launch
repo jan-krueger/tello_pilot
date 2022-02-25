@@ -11,11 +11,6 @@
             <!-- tello_list [-]: Defines the frontend used for the video streams. This can be either opencv or av -->
             <param name="video_frontend" value="av" type="str" />
 
-            <!-- AP Mode -->
-            <param name="ap_mode" value="true" type="bool" />
-            <param name="ap_ssid" value="TP-Link_9975" type="str" />
-            <param name="ap_password" value="62922623" type="str" />
-
             <!-- GLOBAL -->
             <!-- camer_fps [Hz]: This can be 5, 15, or 30. --> 
 			<param name="camera_fps" value="30" type="int" /> 
