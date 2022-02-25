@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from time import sleep, time
 import rospy
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
@@ -19,7 +20,7 @@ class CameraDelayMeasurementNode:
 
         self.bridge = CvBridge()
         self.camera_topic = rospy.get_param(rospy.get_namespace() + rospy.get_name() + '/camera')
-        self.image_subscriber = rospy.Subscriber(self.camera_topic, Image, self.process_image)
+        self.image_subscriber = rospy.Subscriber(self.camera_topic, Image, self.process_image, queue_size=1, tcp_nodelay=True)
 
         self.processing_lock = Lock()
 
@@ -45,9 +46,11 @@ class CameraDelayMeasurementNode:
         tag = np.zeros((300, 300, 1), dtype="uint8")
         with self.processing_lock:
             self.aruco_id = (self.aruco_id + 1) % self.aruco_dictionary_size
-        cv.aruco.drawMarker(self.aruco_dictionary, self.aruco_id, 300, tag, 1)
-        self.current_marker_time = rospy.Time.now()
-        cv.imshow("[CameraDelay] Marker | %s" % self.camera_topic, tag)
+            cv.aruco.drawMarker(self.aruco_dictionary, self.aruco_id, 300, tag, 1)
+            cv.imshow("[CameraDelay] Marker | %s" % self.camera_topic, tag)
+            self.image_queue.clear()
+            self.current_marker_time = rospy.Time.now()
+
         key = cv.waitKey(1000)
 
         if key == 27: # 27 -> ESC
