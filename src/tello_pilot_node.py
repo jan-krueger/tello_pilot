@@ -202,10 +202,16 @@ class TelloSwarmMember:
         self.tello.land()
 
     def cmd_vel(self, msg:TwistStamped):
-        multiplier = 1.25
-        vel_vector = (np.array([msg.twist.linear.x, msg.twist.linear.y, msg.twist.linear.z]) * 100. * multiplier).astype(np.int32)
+        linear_multiplier = 1.25
+        vel_vector = (np.array([msg.twist.linear.x, msg.twist.linear.y, msg.twist.linear.z]) * 100. * linear_multiplier).astype(np.int32)
+        
+        yaw_velocity = msg.twist.angular.z
+        if abs(yaw_velocity) > (math.pi / 2.):
+            rospy.logwarn_throttle(2, "The yaw-velocity provided is too high. The Tello can rotate at a maximum rate of pi/2 rad/s.")
+        yaw_velocity = round((-yaw_velocity / (math.pi / 2.)) * 100)
+
         # NOTE: right-hand coordinate system
-        self.tello.send_rc_control(-vel_vector[1].item(), vel_vector[0].item(), vel_vector[2].item(), 0)
+        self.tello.send_rc_control(-vel_vector[1].item(), vel_vector[0].item(), vel_vector[2].item(), yaw_velocity)
 
     def cmd_camera_direction(self, msg):
         if msg.forward:
