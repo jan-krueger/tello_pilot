@@ -44,24 +44,28 @@ class TelloNode:
         if self.automatic_recovery:
             self.recovery_timer = rospy.Timer(rospy.Duration(1), self.process_recovery_queue)
 
-        # ---- AP ----
-        #if(rospy.get_param('~ap_mode', False)):
-        #    self.tello = Tello()
-        #    self.tello.connect()
-        #    self.tello.connect_to_wifi(rospy.get_param('~ap_ssid'), rospy.get_param('~ap_password'))
-
         #Tello.LOGGER = RospyLogger()
+
+        self.swarm_takeoff_subscriber = rospy.Subscriber("/swarm/takeoff", Empty, self.swarm_takeoff_cmd)
+        self.swarm_land_subscriber = rospy.Subscriber("/swarm/land", Empty, self.swarm_land_cmd)
+
+    def swarm_takeoff_cmd(self, msg):
+        pass
+
+    def swarm_land_cmd(self, msg):
+        pass
 
     def add_drone(self, prefix):
         thread = Thread(target=TelloSwarmMember, daemon=True, args=(prefix,self,))
         thread.start()
-        self.threads[prefix] = thread
+        self.threads[prefix] = {'thread': thread, 'tello':thread.}
 
     def process_recovery_queue(self, event):
         with self.recovery_lock:
             while len(self.recovery_queue) > 0:
                 prefix = self.recovery_queue.pop()
-                self.threads[prefix].join()
+                self.threads[prefix]['thread'].join()
+                self.threads.pop(prefix)
                 self.add_drone(prefix)
 
 
@@ -207,7 +211,7 @@ class TelloSwarmMember:
         
         yaw_velocity = msg.twist.angular.z
         if abs(yaw_velocity) > (math.pi / 2.):
-            rospy.logwarn_throttle(2, "The yaw-velocity provided is too high. The Tello can rotate at a maximum rate of pi/2 rad/s.")
+            rospy.logwarn_throttle(2, "The provided yaw-velocity is too high. The Tello can rotate at a maximum rate of pi/2 [rad/s].")
         yaw_velocity = round((-yaw_velocity / (math.pi / 2.)) * 100)
 
         # NOTE: right-hand coordinate system
