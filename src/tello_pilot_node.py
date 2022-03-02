@@ -58,7 +58,7 @@ class TelloNode:
     def add_drone(self, prefix):
         thread = Thread(target=TelloSwarmMember, daemon=True, args=(prefix,self,))
         thread.start()
-        self.threads[prefix] = {'thread': thread, 'tello':thread.}
+        self.threads[prefix] = {'thread': thread, 'tello': None} # TODO add tello reference
 
     def process_recovery_queue(self, event):
         with self.recovery_lock:
