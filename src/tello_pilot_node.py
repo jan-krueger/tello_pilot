@@ -3,8 +3,6 @@
 import time
 import math
 
-from anyio import sleep
-
 import rospy
 from tf.transformations import quaternion_from_euler
 
@@ -13,9 +11,9 @@ from sensor_msgs.msg import Image, Imu
 from geometry_msgs.msg import TwistStamped
 from tello_pilot.msg import CameraDirection
 
-import cv2 as cv
 import numpy as np
 from utils.RospyLogger import RospyLogger
+from utils.MACManager import MACManager
 from TelloParameterParser import TelloParameterParser
 
 from cv_bridge import CvBridge
@@ -28,6 +26,7 @@ port_update_lock = Lock()
 av_open_lock = Lock()
 
 video_stream_port = 11111
+mac_manager = MACManager()
 
 class TelloNode:
 
@@ -89,8 +88,7 @@ class TelloSwarmMember:
 
         # ---- Settings ----
         self.video_frontend = TelloParameterParser.param_video_frontend(rospy.get_param('~video_frontend', 'av'))
-
-        self.tello = Tello(host=self.pn('ip'),
+        self.tello = Tello(host=mac_manager.get(self.pn('mac')),
             state_update_callback=self.imu_odometry_callback,
             av_open_lock=av_open_lock,
             video_frontend=self.video_frontend)
