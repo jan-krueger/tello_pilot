@@ -115,7 +115,14 @@ class TelloSwarmMember:
         self.cmd_vel_subscriber = rospy.Subscriber(self.tn('cmd_vel'), TwistStamped, self.cmd_vel)
         self.emergency_subscriber = rospy.Subscriber(self.tn('emergency'), Empty, self.cmd_emergency)
 
+        # ---- Camera ----
+        self.tello.streamon()
+        self.camera_direction_subscriber = rospy.Subscriber(self.tn('camera/direction'), CameraDirection, self.cmd_camera_direction),
+        self.image_raw_publisher = rospy.Publisher(self.tn('camera/image_raw'), Image, queue_size=1)
+        self.frame_read = self.tello.get_frame_read(callback=self.pub_image_raw)
+
         # ---- Settings ----
+        # Note: The following settings must be set after #cameraon() as the Tello might otherwise ignore these settings!
         self.camera_direction = Tello.CAMERA_FORWARD
         self.tello.set_video_direction(self.camera_direction)
 
@@ -127,12 +134,6 @@ class TelloSwarmMember:
             TelloParameterParser.param_camera_bitrate(self.pn('camera_bitrate', rospy.get_param('~camera_bitrate'))))
         self.tello.set_video_resolution(
             TelloParameterParser.param_camera_resolution(self.pn('camera_resolution', rospy.get_param('~camera_resolution'))))
-
-        # ---- Camera ----
-        self.tello.streamon()
-        self.camera_direction_subscriber = rospy.Subscriber(self.tn('camera/direction'), CameraDirection, self.cmd_camera_direction),
-        self.image_raw_publisher = rospy.Publisher(self.tn('camera/image_raw'), Image, queue_size=1)
-        self.frame_read = self.tello.get_frame_read(callback=self.pub_image_raw)
 
         # ---- Recovery ----
         if self.node.automatic_recovery:
